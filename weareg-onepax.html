@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html class="scroll-smooth" lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>WeareG × Heliporto — Zero Perda. Precisão Total.</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+<script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['Inter', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
+      },
+      colors: {
+        bg: '#F5F5F7',
+        surface: '#FFFFFF',
+        primary: '#1A1A1A',
+        secondary: '#666666',
+        accent: '#EB3A14',
+        line: '#E5E5E5'
+      },
+      letterSpacing: {
+        tighter: '-0.04em',
+        tight: '-0.02em',
+      },
+      fontSize: { 'xxs': '0.625rem' },
+    }
+  }
+}
+</script>
+<style>
+html { height: auto; scroll-behavior: smooth; }
+body {
+  background-color: #F5F5F7;
+  color: #1A1A1A;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+::selection { background-color: #EB3A14; color: white; }
+
+/* Cursor */
+@media (pointer: fine) {
+  body { cursor: none; }
+  .cursor-dot { width:4px;height:4px;background:#1A1A1A;border-radius:50%;position:fixed;top:0;left:0;pointer-events:none;z-index:9999;transform:translate(-50%,-50%); }
+  .cursor-ring { width:32px;height:32px;border:1px solid rgba(26,26,26,0.2);border-radius:50%;position:fixed;top:0;left:0;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:width .3s,height .3s,background .3s; }
+  body.hovering .cursor-ring { width:64px;height:64px;background:rgba(26,26,26,0.05);border-color:transparent; }
+}
+@media (pointer: coarse) {
+  .cursor-dot, .cursor-ring { display:none; }
+}
+
+/* Loader */
+.loader-overlay { position:fixed;inset:0;background:#000;z-index:10000;display:flex;justify-content:center;align-items:center;color:white; }
+
+/* Marquee */
+.marquee-container { overflow:hidden;white-space:nowrap; }
+.marquee-content { display:inline-block;animation:marquee 30s linear infinite; }
+@keyframes marquee { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+
+/* Reveal */
+.reveal-hero { opacity:0; }
+
+/* Grid */
+.deliveries-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#E5E5E5;border:1px solid #E5E5E5; }
+.delivery-cell { background:white;min-height:5rem;padding:0.75rem;display:flex;flex-direction:column;justify-content:center;align-items:center;cursor:default;transition:background 0.2s;position:relative; }
+.delivery-cell.active { background:#1A1A1A;color:white; }
+.delivery-cell.pending { background:#FFF8F5; }
+
+/* Stat cards */
+.stat-card { background:white;border:1px solid #E5E5E5;border-radius:12px;padding:1.5rem;position:relative;overflow:hidden; }
+.stat-card::before { content:'';position:absolute;top:0;left:0;right:0;height:3px;background:#EB3A14; }
+
+/* Progress bar */
+.progress-bar { width:100%;background:rgba(255,255,255,0.1);height:2px;border-radius:999px;overflow:hidden;margin-top:1rem; }
+.progress-fill { height:100%;background:#EB3A14;border-radius:999px;transition:width 1.5s ease; }
+
+/* Timeline */
+.timeline-line { position:absolute;left:20px;top:0;bottom:0;width:1px;background:#E5E5E5; }
+.timeline-dot { width:10px;height:10px;border-radius:50%;background:#EB3A14;position:absolute;left:16px;top:50%;transform:translateY(-50%); }
+
+/* Chart bars */
+.chart-bar { transition: height 1s ease; }
+
+/* Magnetic */
+.magnetic-wrap { display:inline-block; }
+.magnetic-area { transition:transform .3s cubic-bezier(0.25,.8,.25,1); }
+
+/* Section fade */
+.section-fade { opacity:0;transform:translateY(30px); }
+
+/* Screen reader only */
+.sr-only { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
+</style>
+</head>
+<body class="antialiased">
+
+<!-- Loader -->
+<div class="loader-overlay" id="loader">
+  <div class="flex flex-col items-center gap-4">
+    <span class="uppercase text-xs text-gray-400 tracking-widest font-mono">Carregando Sistema</span>
+    <div class="w-32 h-[1px] bg-gray-800 relative overflow-hidden">
+      <div class="absolute inset-0 bg-white w-0 transition-all" id="loader-bar"></div>
+    </div>
+    <div class="text-4xl font-semibold tracking-tighter font-mono" id="loader-pct">0%</div>
+  </div>
+</div>
+
+<!-- Custom Cursor -->
+<div class="cursor-dot"></div>
+<div class="cursor-ring"></div>
+
+<!-- Navigation -->
+<nav class="fixed top-0 left-0 w-full px-6 py-4 flex justify-between items-center z-40 bg-white/70 backdrop-blur-md border-b border-gray-200/50 text-primary" aria-label="Navegação principal">
+  <div>
+    <a class="hover:opacity-70 transition-opacity block" href="#" aria-label="WeareG - Página inicial">
+      <img src="Selo 3.png" alt="WeareG - Automações e Desenvolvimento" class="h-10 w-10"/>
+    </a>
+  </div>
+  <div class="flex items-center gap-8">
+    <div class="hidden md:flex bg-gray-100/80 border-gray-200 border rounded-full pt-2 pr-6 pb-2 pl-6 gap-x-6">
+      <a class="font-mono text-xs uppercase tracking-widest text-secondary hover:text-accent transition-colors" href="#historia">História</a>
+      <a class="font-mono text-xs uppercase tracking-widest text-secondary hover:text-accent transition-colors" href="#dados">Dados</a>
+      <a class="font-mono text-xs uppercase tracking-widest text-secondary hover:text-accent transition-colors" href="#sistema">Sistema</a>
+      <a class="font-mono text-xs uppercase tracking-widest text-secondary hover:text-accent transition-colors" href="#porquewearg">Por Que Nós</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO SECTION -->
+<header class="relative min-h-[100vh] flex flex-col items-center justify-center overflow-hidden pt-20">
+  <canvas class="absolute inset-0 w-full h-full opacity-[0.03] pointer-events-none" id="noise-canvas"></canvas>
+  <div class="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#F5F5F7] pointer-events-none"></div>
+  <div class="z-10 text-center px-4 max-w-5xl mx-auto flex flex-col items-center">
+    <div class="mb-8 opacity-0 reveal-hero">
+      <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-gray-200 bg-white/50 backdrop-blur-sm">
+        <span class="w-1.5 h-1.5 rounded-full bg-accent animate-pulse"></span>
+        <span class="font-mono text-xxs uppercase tracking-widest text-secondary">OnePax · Sistema Ativo · Heliporto</span>
+      </span>
+    </div>
+    <h1 class="text-[10vw] leading-[0.85] font-semibold tracking-tighter text-primary mb-8 select-none mix-blend-darken">
+      <div class="overflow-hidden"><span class="block reveal-hero-text">Zero</span></div>
+      <div class="overflow-hidden"><span class="block reveal-hero-text text-secondary/40">Perda.</span></div>
+      <div class="overflow-hidden"><span class="block reveal-hero-text">Precisão</span></div>
+      <div class="overflow-hidden"><span class="block reveal-hero-text text-accent">Total.</span></div>
+    </h1>
+    <p class="text-secondary md:text-lg text-balance reveal-hero text-base font-light opacity-0 max-w-lg mr-auto mb-12 ml-auto">
+      Como a WeareG transformou a operação do heliporto com automação e inteligência artificial — em menos de 12 meses.
+    </p>
+    <div class="opacity-0 reveal-hero magnetic-wrap">
+      <button class="magnetic-area px-8 py-4 bg-primary text-white rounded-full font-mono text-xs font-bold uppercase tracking-widest hover:bg-accent transition-colors duration-300" aria-label="Ver a jornada do OnePax" onclick="document.getElementById('historia').scrollIntoView({behavior:'smooth'})">
+        Ver a Jornada
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- MARQUEE -->
+<div class="py-6 border-y border-gray-200 bg-white overflow-hidden select-none">
+  <div class="marquee-container">
+    <div class="marquee-content font-mono text-xs uppercase tracking-[0.4em] text-secondary">
+      −81% Perdas de Registro · +42% Passageiros Registrados · 3ª Catraca Conectada · BI em Tempo Real · ByOne IA Ativa · WhatsApp Integrado · Backup Automático · Design Thinking · Arquitetura Refeita · −81% Perdas de Registro · +42% Passageiros Registrados · 3ª Catraca Conectada · BI em Tempo Real · ByOne IA Ativa · WhatsApp Integrado · Backup Automático · Design Thinking · Arquitetura Refeita ·
+    </div>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<main class="max-w-[1600px] mx-auto p-6 md:p-12 space-y-32">
+
+  <!-- SEÇÃO 1: QUEM SOMOS -->
+  <section class="scroll-mt-24 section-fade" id="historia">
+    <div class="flex justify-between items-end mb-12 border-b border-gray-200 pb-6">
+      <h2 class="text-4xl md:text-6xl font-semibold tracking-tighter">WeareG</h2>
+      <span class="font-mono text-xs uppercase tracking-widest text-secondary hidden md:block">Fundada em agosto · 2025</span>
+    </div>
+
+    <!-- About block -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-20">
+      <div class="space-y-6">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-gray-200 bg-white">
+          <span class="w-1.5 h-1.5 rounded-full bg-accent"></span>
+          <span class="font-mono text-xxs uppercase tracking-widest text-secondary">Empresa B2B · Operacional</span>
+        </div>
+        <h3 class="text-3xl md:text-4xl font-semibold tracking-tighter leading-tight">
+          Entramos na sua operação.<br/>
+          <span class="text-secondary/50">Saímos com resultados.</span>
+        </h3>
+        <p class="text-secondary text-base leading-relaxed">
+          A WeareG nasceu em 28 de agosto de 2025 com três frentes de atuação: Automação de Processos, Desenvolvimento de Inteligência de Dados e Implementação de Arquitetura de Inteligência Artificial. Entramos na operação, entendemos o negócio por dentro e entregamos resultado com base em dados reais — não em teoria.
+        </p>
+        <p class="text-secondary text-base leading-relaxed">
+          Uma equipe de 3 sócios e 2 especialistas com um único foco — eliminar perdas operacionais e aumentar faturamento através de tecnologia aplicada ao chão de fábrica.
+        </p>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="stat-card">
+          <span class="font-mono text-xxs uppercase tracking-widest text-secondary">Fundação</span>
+          <div class="text-3xl font-semibold tracking-tighter mt-2">Ago<br/>2025</div>
+          <p class="text-xs text-secondary mt-2">Nascemos com foco cirúrgico em resultados</p>
+        </div>
+        <div class="stat-card">
+          <span class="font-mono text-xxs uppercase tracking-widest text-secondary">Equipe</span>
+          <div class="text-3xl font-semibold tracking-tighter mt-2">5<br/><span class="text-lg text-secondary/60">pessoas</span></div>
+          <p class="text-xs text-secondary mt-2">3 sócios · 2 especialistas</p>
+        </div>
+        <div class="stat-card col-span-2">
+          <span class="font-mono text-xxs uppercase tracking-widest text-secondary">Especialidade</span>
+          <div class="flex gap-3 mt-3 flex-wrap">
+            <span class="px-3 py-1 bg-accent/10 text-accent rounded-full text-xs font-mono font-medium">Dados</span>
+            <span class="px-3 py-1 bg-primary/5 text-primary rounded-full text-xs font-mono font-medium">Automação</span>
+            <span class="px-3 py-1 bg-primary/5 text-primary rounded-full text-xs font-mono font-medium">Inteligência Artificial</span>
+            <span class="px-3 py-1 bg-primary/5 text-primary rounded-full text-xs font-mono font-medium">Operacional B2B</span>
+          </div>
+          <p class="text-xs text-secondary mt-3">Entendemos o negócio. Melhoramos. Alavancamos.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- JORNADA: 3 CARDS -->
+    <div class="flex justify-between items-end mb-8 border-b border-gray-200 pb-6">
+      <h3 class="text-2xl md:text-3xl font-semibold tracking-tighter">A Jornada OnePax</h3>
+      <span class="font-mono text-xs uppercase tracking-widest text-secondary hidden md:block">Passado → Transformação → Hoje</span>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+      <!-- Card 1: Problema -->
+      <div class="group cursor-default relative">
+        <div class="aspect-[4/5] bg-white rounded-xl border border-gray-200 overflow-hidden relative transition-all duration-500 group-hover:shadow-2xl group-hover:translate-y-[-4px]">
+          <div class="absolute inset-0 bg-gradient-to-tr from-[#FFF3F0] to-white opacity-100"></div>
+          <div class="absolute inset-0 flex items-center justify-center opacity-20 group-hover:scale-110 transition-transform duration-700">
+            <iconify-icon class="text-accent" icon="solar:clipboard-list-linear" width="128"></iconify-icon>
+          </div>
+          <div class="absolute top-6 right-6 font-mono text-xs font-medium border border-black/10 px-2 py-1 rounded bg-white/70">Antes de 2024</div>
+          <div class="absolute bottom-0 left-0 w-full p-8">
+            <span class="font-mono text-xs uppercase text-accent mb-1 block">O Problema</span>
+            <h3 class="text-2xl font-semibold tracking-tight mb-2">Contagem Manual → SAPI</h3>
+            <p class="text-sm text-secondary">Contagem na prancheta. Dados duplicados. Reprocessamento invisível. Dois sistemas que nunca batiam.</p>
+            <div class="mt-4 flex flex-wrap gap-2">
+              <span class="px-2 py-0.5 bg-red-50 text-red-500 text-xxs font-mono rounded">Erro Humano</span>
+              <span class="px-2 py-0.5 bg-red-50 text-red-500 text-xxs font-mono rounded">Duplicidade</span>
+              <span class="px-2 py-0.5 bg-red-50 text-red-500 text-xxs font-mono rounded">Perda de Dados</span>
+            </div>
+          </div>
+          <div class="absolute inset-0 border-2 border-accent/30 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        </div>
+      </div>
+
+      <!-- Card 2: Intervenção -->
+      <div class="group cursor-default relative md:mt-8">
+        <div class="aspect-[4/5] bg-white rounded-xl border border-gray-200 overflow-hidden relative transition-all duration-500 group-hover:shadow-2xl group-hover:translate-y-[-4px]">
+          <div class="absolute inset-0 bg-gradient-to-tr from-[#F5F5F7] to-white opacity-100"></div>
+          <div class="absolute inset-0 flex items-center justify-center opacity-20 group-hover:scale-110 transition-transform duration-700">
+            <iconify-icon class="text-primary" icon="solar:settings-minimalistic-linear" width="128"></iconify-icon>
+          </div>
+          <div class="absolute top-6 right-6 font-mono text-xs font-medium border border-black/10 px-2 py-1 rounded bg-white/70">2025 — Intervenção</div>
+          <div class="absolute bottom-0 left-0 w-full p-8">
+            <span class="font-mono text-xs uppercase text-primary mb-1 block">A Transformação</span>
+            <h3 class="text-2xl font-semibold tracking-tight mb-2">WeareG Assume</h3>
+            <p class="text-sm text-secondary">Nova arquitetura de banco, segurança reforçada, 3ª catraca conectada, BI em tempo real, frontend redesenhado com Design Thinking.</p>
+            <div class="mt-4 flex flex-wrap gap-2">
+              <span class="px-2 py-0.5 bg-gray-100 text-gray-600 text-xxs font-mono rounded">Infraestrutura</span>
+              <span class="px-2 py-0.5 bg-gray-100 text-gray-600 text-xxs font-mono rounded">BI</span>
+              <span class="px-2 py-0.5 bg-gray-100 text-gray-600 text-xxs font-mono rounded">Design</span>
+            </div>
+          </div>
+          <div class="absolute inset-0 border-2 border-primary/20 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        </div>
+      </div>
+
+      <!-- Card 3: Resultado -->
+      <div class="group cursor-default relative">
+        <div class="aspect-[4/5] bg-white rounded-xl border border-gray-200 overflow-hidden relative transition-all duration-500 group-hover:shadow-2xl group-hover:translate-y-[-4px]">
+          <div class="absolute inset-0 bg-gradient-to-tr from-[#F0FFF4] to-white opacity-100"></div>
+          <div class="absolute inset-0 flex items-center justify-center opacity-20 group-hover:scale-110 transition-transform duration-700">
+            <iconify-icon class="text-green-600" icon="solar:cpu-bolt-linear" width="128"></iconify-icon>
+          </div>
+          <div class="absolute top-6 right-6 font-mono text-xs font-medium border border-black/10 px-2 py-1 rounded bg-white/70">2026 — Hoje</div>
+          <div class="absolute bottom-0 left-0 w-full p-8">
+            <span class="font-mono text-xs uppercase text-green-600 mb-1 block">O Produto</span>
+            <h3 class="text-2xl font-semibold tracking-tight mb-2">OnePax + ByOne</h3>
+            <p class="text-sm text-secondary">A única fonte de verdade do heliporto. IA ativa. WhatsApp integrado. 81% menos perdas no registro.</p>
+            <div class="mt-4 flex flex-wrap gap-2">
+              <span class="px-2 py-0.5 bg-green-50 text-green-600 text-xxs font-mono rounded">IA Ativa</span>
+              <span class="px-2 py-0.5 bg-green-50 text-green-600 text-xxs font-mono rounded">Automação</span>
+              <span class="px-2 py-0.5 bg-green-50 text-green-600 text-xxs font-mono rounded">−81% Perdas</span>
+            </div>
+          </div>
+          <div class="absolute inset-0 border-2 border-green-500/30 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- SEÇÃO 2: DADOS -->
+  <section class="scroll-mt-24 section-fade" id="dados">
+    <div class="flex justify-between items-end mb-12 border-b border-gray-200 pb-6">
+      <h2 class="text-4xl md:text-6xl font-semibold tracking-tighter">Impacto Real</h2>
+      <span class="font-mono text-xs uppercase tracking-widest text-secondary hidden md:block">2024 vs 2025</span>
+    </div>
+
+    <!-- Contexto do problema -->
+    <div class="bg-white rounded-2xl p-8 md:p-12 border border-gray-200 mb-12 relative overflow-hidden">
+      <div class="absolute top-0 right-0 p-8 opacity-5">
+        <iconify-icon icon="solar:danger-triangle-linear" width="200"></iconify-icon>
+      </div>
+      <div class="max-w-3xl">
+        <span class="font-mono text-xxs uppercase tracking-widest text-accent mb-4 block">O Problema Original</span>
+        <h3 class="text-2xl md:text-3xl font-semibold tracking-tighter mb-6">O que acontecia antes do OnePax</h3>
+        <div class="space-y-4">
+          <div class="flex gap-4 items-start">
+            <div class="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <iconify-icon icon="solar:eye-linear" width="16" class="text-accent"></iconify-icon>
+            </div>
+            <div>
+              <p class="font-medium text-sm mb-1">Contagem visual manual</p>
+              <p class="text-secondary text-sm">1ª contagem no canal de inspeção. 2ª contagem no COA durante embarque e desembarque. Dois funcionários, dois registros, uma divergência crônica.</p>
+            </div>
+          </div>
+          <div class="flex gap-4 items-start">
+            <div class="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <iconify-icon icon="solar:pen-linear" width="16" class="text-accent"></iconify-icon>
+            </div>
+            <div>
+              <p class="font-medium text-sm mb-1">Inserção manual de dados</p>
+              <p class="text-secondary text-sm">Funcionário INFRA digitava manualmente números anotados na prancheta. COA replicava esses dados inserindo-os em sua própria planilha.</p>
+            </div>
+          </div>
+          <div class="flex gap-4 items-start">
+            <div class="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <iconify-icon icon="solar:ghost-linear" width="16" class="text-accent"></iconify-icon>
+            </div>
+            <div>
+              <p class="font-medium text-sm mb-1">Reprocessamento não registrado</p>
+              <p class="text-secondary text-sm">Passageiros reprocessados simplesmente desapareciam dos registros. O que não é medido, não é gerenciado.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Números grandes -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+      <div class="stat-card text-center">
+        <div class="text-4xl md:text-5xl font-semibold tracking-tighter text-accent" data-count="-81" data-suffix="%">0</div>
+        <div class="text-xs text-secondary mt-2 font-mono">% Redução de perdas<br/>no registro</div>
+      </div>
+      <div class="stat-card text-center">
+        <div class="text-4xl md:text-5xl font-semibold tracking-tighter" data-count="+42" data-suffix="%">0</div>
+        <div class="text-xs text-secondary mt-2 font-mono">% Aumento no<br/>registro correto</div>
+      </div>
+      <div class="stat-card text-center">
+        <div class="text-4xl md:text-5xl font-semibold tracking-tighter text-accent" data-count="-105" data-suffix="">0</div>
+        <div class="text-xs text-secondary mt-2 font-mono">p.p. Redução<br/>média de perdas/mês</div>
+      </div>
+      <div class="stat-card text-center">
+        <div class="text-4xl md:text-5xl font-semibold tracking-tighter" data-count="+131" data-suffix="">0</div>
+        <div class="text-xs text-secondary mt-2 font-mono">p.p. Aumento<br/>média de ganhos/mês</div>
+      </div>
+    </div>
+
+    <!-- Comparativo 2024 vs 2025 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+
+      <!-- 2024 -->
+      <div class="bg-white rounded-2xl p-8 border border-gray-200">
+        <div class="flex justify-between items-start mb-6">
+          <div>
+            <span class="font-mono text-xxs uppercase tracking-widest text-accent">2024 — Pré-Automação</span>
+            <h4 class="text-xl font-semibold tracking-tighter mt-1">Diferença CIGAM vs COA</h4>
+          </div>
+          <span class="px-2 py-1 bg-red-50 text-accent text-xs font-mono rounded">Instável</span>
+        </div>
+        <div class="space-y-4">
+          <div class="text-sm">
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-secondary font-mono text-xs">Passageiros NÃO registrados (perdas)</span>
+              <span class="font-semibold text-accent">−783</span>
+            </div>
+            <div class="w-full bg-gray-100 rounded-full h-1.5"><div class="bg-accent h-1.5 rounded-full" style="width:78%"></div></div>
+          </div>
+          <div class="text-sm">
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-secondary font-mono text-xs">Passageiros registrados (ganhos)</span>
+              <span class="font-semibold">+1.871</span>
+            </div>
+            <div class="w-full bg-gray-100 rounded-full h-1.5"><div class="bg-primary h-1.5 rounded-full" style="width:60%"></div></div>
+          </div>
+          <div class="border-t border-gray-100 pt-4 grid grid-cols-2 gap-3 text-center">
+            <div class="bg-red-50 rounded-lg p-3">
+              <div class="text-xl font-semibold text-accent">130,5</div>
+              <div class="text-xxs font-mono text-secondary uppercase mt-1">Perdas/mês (média)</div>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-3">
+              <div class="text-xl font-semibold">311,8</div>
+              <div class="text-xxs font-mono text-secondary uppercase mt-1">Ganhos/mês (média)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2025 -->
+      <div class="bg-white rounded-2xl p-8 border border-gray-200">
+        <div class="flex justify-between items-start mb-6">
+          <div>
+            <span class="font-mono text-xxs uppercase tracking-widest text-green-600">2025 — Pós OnePax</span>
+            <h4 class="text-xl font-semibold tracking-tighter mt-1">Diferença CIGAM/SAPI vs COA</h4>
+          </div>
+          <span class="px-2 py-1 bg-green-50 text-green-600 text-xs font-mono rounded">Controlado</span>
+        </div>
+        <div class="space-y-4">
+          <div class="text-sm">
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-secondary font-mono text-xs">Passageiros NÃO registrados (perdas)</span>
+              <span class="font-semibold text-accent">−150</span>
+            </div>
+            <div class="w-full bg-gray-100 rounded-full h-1.5"><div class="bg-accent h-1.5 rounded-full" style="width:15%"></div></div>
+          </div>
+          <div class="text-sm">
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-secondary font-mono text-xs">Passageiros registrados (ganhos)</span>
+              <span class="font-semibold text-green-600">+2.659</span>
+            </div>
+            <div class="w-full bg-gray-100 rounded-full h-1.5"><div class="bg-green-500 h-1.5 rounded-full" style="width:85%"></div></div>
+          </div>
+          <div class="border-t border-gray-100 pt-4">
+            <div class="bg-green-50 rounded-lg p-4 text-center">
+              <div class="font-mono text-xs uppercase text-green-600 tracking-widest mb-2">Declaração Definitiva</div>
+              <p class="text-sm font-medium text-primary">"O SAPI é a única fonte de dados para o processamento de passageiros, substituindo em definitivo a contagem manual pelo COA."</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- O que foi entregue -->
+    <div class="mt-12">
+      <div class="flex justify-between items-end mb-6 border-b border-gray-200 pb-4">
+        <h3 class="text-xl font-semibold tracking-tighter">O que foi construído</h3>
+        <div class="flex items-center gap-4 text-xs font-mono text-secondary">
+          <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-accent"></span>Entregue ✓</span>
+          <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-white border border-gray-300"></span>Em andamento ◉</span>
+        </div>
+      </div>
+      <div class="deliveries-grid rounded-lg overflow-hidden">
+        <div class="delivery-cell active">
+          <iconify-icon icon="solar:database-linear" width="24" class="mb-1"></iconify-icon>
+          <span class="text-xxs font-mono text-center leading-tight">Arquitetura de Banco</span>
+        </div>
+        <div class="delivery-cell active">
+          <iconify-icon icon="solar:shield-check-linear" width="24" class="mb-1"></iconify-icon>
+          <span class="text-xxs font-mono text-center leading-tight">Segurança de Infra</span>
+        </div>
+        <div class="delivery-cell active">
+          <iconify-icon icon="solar:turnstile-linear" width="24" class="mb-1"></iconify-icon>
+          <span class="text-xxs font-mono text-center leading-tight">3ª Catraca Conectada</span>
+        </div>
+        <div class="delivery-cell active">
+          <iconify-icon icon="solar:chart-square-linear" width="24" class="mb-1"></iconify-icon>
+          <span class="text-xxs font-mono text-center leading-tight">BI em Tempo Real</span>
+        </div>
+        <div class="delivery-cell active">
+          <iconify-icon icon="solar:monitor-linear" width="24" class="mb-1"></iconify-icon>
+          <span class="text-xxs font-mono text-center leading-tight">Frontend Design Thinking</span>
+        </div>
+        <div class="delivery-cell active">
+          <iconify-icon icon="solar:cloud-storage-linear" width="24" class="mb-1"></iconify-icon>
+          <span class="text-xxs font-mono text-center leading-tight">Sistema de Backup</span>
+        </div>
+        <div class="delivery-cell active">
+          <iconify-icon icon="solar:document-text-linear" width="24" class="mb-1"></iconify-icon>
+          <span class="text-xxs font-mono text-center leading-tight">Extração de Relatórios</span>
+        </div>
+        <div class="delivery-cell active">
+          <iconify-icon icon="solar:users-group-two-linear" width="24" class="mb-1"></iconify-icon>
+          <span class="text-xxs font-mono text-center leading-tight">Contagem 100% Auto</span>
+        </div>
+        <div class="delivery-cell pending">
+          <iconify-icon icon="solar:chat-round-dots-linear" width="24" class="mb-1 text-accent"></iconify-icon>
+          <span class="text-xxs font-mono text-center leading-tight text-accent">WhatsApp Direto ◉</span>
+        </div>
+        <div class="delivery-cell pending col-span-3">
+          <div class="flex items-center gap-3">
+            <iconify-icon icon="solar:cpu-bolt-linear" width="24" class="text-accent"></iconify-icon>
+            <div>
+              <span class="text-xxs font-mono text-accent font-medium">ByOne — Primeira IA do Heliporto ◉</span>
+              <p class="text-xxs text-secondary font-mono">Em implementação · Inteligência sobre dados do OnePax</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SEÇÃO 3: SISTEMA -->
+  <section class="scroll-mt-24 section-fade" id="sistema">
+    <div class="flex justify-between items-end mb-12 border-b border-gray-200 pb-6">
+      <h2 class="text-4xl md:text-6xl font-semibold tracking-tighter">OnePax</h2>
+      <span class="font-mono text-xs uppercase tracking-widest text-secondary hidden md:block">Sistema · Ativo</span>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+      <!-- Lista de telas -->
+      <div class="lg:col-span-5 space-y-3" id="screens-list">
+        <p class="text-sm text-secondary mb-6 font-mono">Clique em uma tela para ver os detalhes</p>
+        <div class="screen-item bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:border-accent transition-colors flex items-center gap-4 active-screen" onclick="setScreen('dashboard')" id="item-dashboard">
+          <div class="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
+            <iconify-icon icon="solar:chart-2-linear" width="20" class="text-accent"></iconify-icon>
+          </div>
+          <div>
+            <h4 class="font-medium text-sm">Dashboard Principal</h4>
+            <p class="text-xs text-secondary">Visão geral em tempo real da operação</p>
+          </div>
+          <iconify-icon icon="solar:arrow-right-linear" width="16" class="text-secondary ml-auto"></iconify-icon>
+        </div>
+        <div class="screen-item bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:border-accent transition-colors flex items-center gap-4" onclick="setScreen('contagem')" id="item-contagem">
+          <div class="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center flex-shrink-0">
+            <iconify-icon icon="solar:users-group-two-linear" width="20" class="text-secondary"></iconify-icon>
+          </div>
+          <div>
+            <h4 class="font-medium text-sm">Contagem Automática</h4>
+            <p class="text-xs text-secondary">Registro automático por catraca</p>
+          </div>
+          <iconify-icon icon="solar:arrow-right-linear" width="16" class="text-secondary ml-auto"></iconify-icon>
+        </div>
+        <div class="screen-item bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:border-accent transition-colors flex items-center gap-4" onclick="setScreen('bi')" id="item-bi">
+          <div class="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center flex-shrink-0">
+            <iconify-icon icon="solar:chart-square-linear" width="20" class="text-secondary"></iconify-icon>
+          </div>
+          <div>
+            <h4 class="font-medium text-sm">BI Analítico</h4>
+            <p class="text-xs text-secondary">Análise de dados e tendências operacionais</p>
+          </div>
+          <iconify-icon icon="solar:arrow-right-linear" width="16" class="text-secondary ml-auto"></iconify-icon>
+        </div>
+        <div class="screen-item bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:border-accent transition-colors flex items-center gap-4" onclick="setScreen('relatorios')" id="item-relatorios">
+          <div class="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center flex-shrink-0">
+            <iconify-icon icon="solar:document-text-linear" width="20" class="text-secondary"></iconify-icon>
+          </div>
+          <div>
+            <h4 class="font-medium text-sm">Relatórios</h4>
+            <p class="text-xs text-secondary">Exportação automatizada com filtros avançados</p>
+          </div>
+          <iconify-icon icon="solar:arrow-right-linear" width="16" class="text-secondary ml-auto"></iconify-icon>
+        </div>
+        <div class="screen-item bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:border-accent transition-colors flex items-center gap-4" onclick="setScreen('byone')" id="item-byone">
+          <div class="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
+            <iconify-icon icon="solar:cpu-bolt-linear" width="20" class="text-accent"></iconify-icon>
+          </div>
+          <div>
+            <h4 class="font-medium text-sm">ByOne IA <span class="text-accent text-xxs font-mono ml-1">EM BREVE</span></h4>
+            <p class="text-xs text-secondary">Primeira inteligência artificial do heliporto</p>
+          </div>
+          <iconify-icon icon="solar:arrow-right-linear" width="16" class="text-secondary ml-auto"></iconify-icon>
+        </div>
+      </div>
+
+      <!-- Painel de detalhes -->
+      <div class="lg:col-span-7 sticky top-24">
+        <div class="bg-white rounded-xl p-8 border border-gray-200 shadow-sm relative overflow-hidden min-h-[400px]">
+          <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-accent to-transparent"></div>
+          <div id="screen-panel" aria-live="polite">
+            <!-- Dashboard -->
+            <div id="panel-dashboard">
+              <span class="font-mono text-xxs uppercase tracking-widest text-accent mb-2 block">Dashboard Principal</span>
+              <h3 class="text-2xl font-semibold tracking-tight leading-tight mb-4">Visão Operacional em Tempo Real</h3>
+              <div class="flex flex-wrap gap-2 mb-6">
+                <span class="px-2 py-1 bg-accent/10 text-accent rounded-full text-xxs font-mono">Tempo Real</span>
+                <span class="px-2 py-1 bg-gray-100 text-primary rounded-full text-xxs font-mono">Embarque</span>
+                <span class="px-2 py-1 bg-gray-100 text-primary rounded-full text-xxs font-mono">Desembarque</span>
+                <span class="px-2 py-1 bg-gray-100 text-primary rounded-full text-xxs font-mono">Processamento</span>
+              </div>
+              <div class="space-y-4 text-sm text-secondary">
+                <p>O dashboard reúne em uma única tela todos os dados de movimento de passageiros: embarque, desembarque e processamento total. Os números atualizam automaticamente conforme os passageiros passam pelas catracas.</p>
+                <p>Aqui você vê, em tempo real, o que antes exigia dois funcionários, duas planilhas e horas de conciliação manual.</p>
+                <div class="bg-gray-50 rounded-lg p-4 mt-4">
+                  <div class="grid grid-cols-3 gap-4 text-center">
+                    <div><div class="text-2xl font-semibold text-accent">3</div><div class="text-xxs text-secondary font-mono uppercase mt-1">Catracas</div></div>
+                    <div><div class="text-2xl font-semibold">0s</div><div class="text-xxs text-secondary font-mono uppercase mt-1">Latência</div></div>
+                    <div><div class="text-2xl font-semibold text-green-600">100%</div><div class="text-xxs text-secondary font-mono uppercase mt-1">Automático</div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Contagem -->
+            <div id="panel-contagem" class="hidden">
+              <span class="font-mono text-xxs uppercase tracking-widest text-accent mb-2 block">Contagem Automática</span>
+              <h3 class="text-2xl font-semibold tracking-tight leading-tight mb-4">Da Prancheta para o Sistema</h3>
+              <div class="flex flex-wrap gap-2 mb-6">
+                <span class="px-2 py-1 bg-accent/10 text-accent rounded-full text-xxs font-mono">3 Catracas</span>
+                <span class="px-2 py-1 bg-gray-100 text-primary rounded-full text-xxs font-mono">Sem Erro Humano</span>
+              </div>
+              <div class="space-y-4 text-sm text-secondary">
+                <p>Cada passageiro que passa por qualquer uma das três catracas é automaticamente registrado. Não há digitação, não há prancheta, não há margem para erro humano.</p>
+                <p>A 3ª catraca — que antes ficava completamente fora do controle — hoje está integrada e seus dados são consolidados em tempo real com as demais.</p>
+                <div class="bg-red-50 rounded-lg p-4 mt-4 border border-red-100">
+                  <p class="text-xs font-mono text-accent font-medium uppercase tracking-wider mb-1">Antes</p>
+                  <p class="text-sm text-secondary">Funcionário conta → anota na prancheta → digita no sistema → COA duplica em planilha → divergências.</p>
+                </div>
+                <div class="bg-green-50 rounded-lg p-4 border border-green-100">
+                  <p class="text-xs font-mono text-green-600 font-medium uppercase tracking-wider mb-1">Agora</p>
+                  <p class="text-sm text-secondary">Passageiro passa → catraca registra → OnePax processa → dado disponível instantaneamente.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- BI -->
+            <div id="panel-bi" class="hidden">
+              <span class="font-mono text-xxs uppercase tracking-widest text-accent mb-2 block">Business Intelligence</span>
+              <h3 class="text-2xl font-semibold tracking-tight leading-tight mb-4">Dados que Geram Decisões</h3>
+              <div class="flex flex-wrap gap-2 mb-6">
+                <span class="px-2 py-1 bg-accent/10 text-accent rounded-full text-xxs font-mono">Analítico</span>
+                <span class="px-2 py-1 bg-gray-100 text-primary rounded-full text-xxs font-mono">Histórico</span>
+                <span class="px-2 py-1 bg-gray-100 text-primary rounded-full text-xxs font-mono">Tendências</span>
+              </div>
+              <div class="space-y-4 text-sm text-secondary">
+                <p>O BI do OnePax transforma os dados brutos das catracas em insights acionáveis. Você vê tendências mensais, picos de movimento, variações por período e comparativos históricos.</p>
+                <p>É a diferença entre olhar para o passado e conseguir antecipar o futuro da operação.</p>
+                <div class="bg-gray-50 rounded-lg p-4 mt-4 space-y-2">
+                  <div class="flex justify-between text-xs"><span class="font-mono text-secondary">Evolução mensal visível</span><iconify-icon icon="solar:check-circle-linear" class="text-green-500" width="16"></iconify-icon></div>
+                  <div class="flex justify-between text-xs"><span class="font-mono text-secondary">Comparativo de períodos</span><iconify-icon icon="solar:check-circle-linear" class="text-green-500" width="16"></iconify-icon></div>
+                  <div class="flex justify-between text-xs"><span class="font-mono text-secondary">Filtros por catraca, voo, data</span><iconify-icon icon="solar:check-circle-linear" class="text-green-500" width="16"></iconify-icon></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Relatórios -->
+            <div id="panel-relatorios" class="hidden">
+              <span class="font-mono text-xxs uppercase tracking-widest text-accent mb-2 block">Relatórios</span>
+              <h3 class="text-2xl font-semibold tracking-tight leading-tight mb-4">Exportação em Segundos</h3>
+              <div class="flex flex-wrap gap-2 mb-6">
+                <span class="px-2 py-1 bg-accent/10 text-accent rounded-full text-xxs font-mono">Automatizado</span>
+                <span class="px-2 py-1 bg-gray-100 text-primary rounded-full text-xxs font-mono">Filtros Avançados</span>
+              </div>
+              <div class="space-y-4 text-sm text-secondary">
+                <p>O que antes era um processo demorado de conciliação manual entre planilhas diferentes, hoje é gerado com um clique. Filtros por data, catraca, tipo de operação — tudo configurável.</p>
+                <p>O relatório sai do sistema direto para quem precisa, no formato que precisa, com os dados corretos.</p>
+                <div class="bg-gray-50 rounded-lg p-4 mt-4">
+                  <p class="text-xs font-mono text-secondary uppercase tracking-widest mb-2">Formatos disponíveis</p>
+                  <div class="flex gap-2 flex-wrap">
+                    <span class="px-2 py-1 bg-white border border-gray-200 text-xs font-mono rounded">Excel</span>
+                    <span class="px-2 py-1 bg-white border border-gray-200 text-xs font-mono rounded">PDF</span>
+                    <span class="px-2 py-1 bg-white border border-gray-200 text-xs font-mono rounded">CSV</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ByOne -->
+            <div id="panel-byone" class="hidden">
+              <span class="font-mono text-xxs uppercase tracking-widest text-accent mb-2 block">ByOne — Inteligência Artificial</span>
+              <h3 class="text-2xl font-semibold tracking-tight leading-tight mb-4">A Primeira IA do Heliporto</h3>
+              <div class="flex flex-wrap gap-2 mb-6">
+                <span class="px-2 py-1 bg-accent/10 text-accent rounded-full text-xxs font-mono">Em Implementação</span>
+                <span class="px-2 py-1 bg-gray-100 text-primary rounded-full text-xxs font-mono">IA Nativa</span>
+                <span class="px-2 py-1 bg-gray-100 text-primary rounded-full text-xxs font-mono">Insights Automáticos</span>
+              </div>
+              <div class="space-y-4 text-sm text-secondary">
+                <p>O ByOne não é um chatbot. É uma camada de inteligência que opera sobre os dados que o OnePax já coleta — gerando insights, antecipando gargalos e liberando a equipe operacional para o que realmente importa.</p>
+                <p>Combinado com as notificações diretas via WhatsApp, o ByOne representa o próximo patamar de automação desta operação.</p>
+                <div class="bg-accent/5 rounded-lg p-4 mt-4 border border-accent/20">
+                  <p class="text-xs font-mono text-accent font-medium uppercase tracking-wider mb-2">O que o ByOne vai fazer</p>
+                  <ul class="space-y-1.5 text-xs">
+                    <li class="flex items-center gap-2"><span class="w-1 h-1 rounded-full bg-accent"></span>Detectar anomalias operacionais automaticamente</li>
+                    <li class="flex items-center gap-2"><span class="w-1 h-1 rounded-full bg-accent"></span>Antecipar picos de movimento por histórico</li>
+                    <li class="flex items-center gap-2"><span class="w-1 h-1 rounded-full bg-accent"></span>Notificar passageiros via WhatsApp em tempo real</li>
+                    <li class="flex items-center gap-2"><span class="w-1 h-1 rounded-full bg-accent"></span>Gerar resumos operacionais diários automáticos</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SEÇÃO 4: POR QUE A WEAREG -->
+  <section class="bg-[#111] text-white p-8 md:p-12 rounded-2xl relative overflow-hidden section-fade" id="porquewearg">
+    <div class="absolute top-0 right-0 p-6 opacity-10">
+      <iconify-icon icon="solar:shield-check-linear" width="160"></iconify-icon>
+    </div>
+
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 border-b border-white/10 pb-6 gap-6">
+      <div>
+        <h2 class="text-3xl md:text-5xl font-semibold tracking-tighter">Por que a WeareG.</h2>
+        <p class="text-sm text-gray-500 mt-1 font-mono">Fatos concretos. Sem enrolação.</p>
+      </div>
+      <div class="flex items-center gap-4 bg-white/5 p-4 rounded-lg border border-white/10">
+        <span class="text-xs font-mono uppercase tracking-widest text-gray-400">ByOne em implementação</span>
+        <div class="w-2 h-2 rounded-full bg-accent animate-pulse"></div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm mb-10">
+      <!-- Card 1 -->
+      <div class="bg-white/5 p-6 rounded-lg border border-white/5 relative overflow-hidden">
+        <iconify-icon icon="solar:home-check-linear" width="32" class="text-accent mb-4 block"></iconify-icon>
+        <span class="font-mono text-xs text-gray-500 uppercase">Vantagem Real</span>
+        <div class="text-lg font-medium mt-2">Já estamos dentro</div>
+        <div class="text-xs text-gray-400 mt-2 leading-relaxed">Conhecemos cada catraca, cada operador, cada fluxo. Não existe curva de aprendizado — só execução. Nenhum concorrente pode chegar aqui e dizer o mesmo.</div>
+        <div class="progress-bar mt-4"><div class="progress-fill" style="width:95%"></div></div>
+        <p class="text-xxs text-gray-600 font-mono mt-1">Conhecimento da operação: 95%</p>
+      </div>
+      <!-- Card 2 -->
+      <div class="bg-white/5 p-6 rounded-lg border border-white/5 relative overflow-hidden">
+        <iconify-icon icon="solar:cpu-bolt-linear" width="32" class="text-accent mb-4 block"></iconify-icon>
+        <span class="font-mono text-xs text-gray-500 uppercase">Especialidade</span>
+        <div class="text-lg font-medium mt-2">IA no operacional</div>
+        <div class="text-xs text-gray-400 mt-2 leading-relaxed">Não somos empresa de ERP. Somos especialistas em implementar inteligência artificial em operações reais, com dados reais, no chão de fábrica — não em documentos.</div>
+        <div class="progress-bar mt-4"><div class="progress-fill" style="width:100%"></div></div>
+        <p class="text-xxs text-gray-600 font-mono mt-1">Especialização em IA operacional: 100%</p>
+      </div>
+      <!-- Card 3 -->
+      <div class="bg-white/5 p-6 rounded-lg border border-white/5 relative overflow-hidden">
+        <iconify-icon icon="solar:graph-up-linear" width="32" class="text-accent mb-4 block"></iconify-icon>
+        <span class="font-mono text-xs text-gray-500 uppercase">Resultado</span>
+        <div class="text-lg font-medium mt-2">12 meses. 81% de melhora.</div>
+        <div class="text-xs text-gray-400 mt-2 leading-relaxed">Os dados de 2024 vs 2025 falam por si. Nenhum concorrente pode mostrar o que já mostramos aqui. Isso não é proposta — é histórico comprovado.</div>
+        <div class="progress-bar mt-4"><div class="progress-fill" style="width:81%"></div></div>
+        <p class="text-xxs text-gray-600 font-mono mt-1">Redução de perdas: 81%</p>
+      </div>
+    </div>
+
+    <!-- Terminal comparativo -->
+    <div class="bg-[#1E1E1E] rounded-xl shadow-2xl overflow-hidden font-mono text-sm border border-gray-800">
+      <div class="bg-[#2A2A2A] px-4 py-2 flex items-center gap-2 border-b border-gray-700">
+        <div class="flex gap-1.5">
+          <div class="w-3 h-3 rounded-full bg-red-500"></div>
+          <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+          <div class="w-3 h-3 rounded-full bg-green-500"></div>
+        </div>
+        <span class="ml-4 text-xs text-gray-500">weareg — análise comparativa — heliporto</span>
+      </div>
+      <div class="p-6 min-h-[280px] overflow-y-auto flex flex-col" id="terminal-output" role="log" aria-label="Saída do terminal" aria-live="polite">
+        <div class="mb-4 text-gray-400 text-xs">
+          WeareG Intelligence Report v1.0<br/>
+          Digite 'compare' para análise · 'status' para sistema ativo · 'futuro' para próximos passos
+        </div>
+        <div class="mb-2">
+          <span class="text-green-500">➜</span> <span class="text-cyan-400">~</span> <span class="text-gray-300">cat weareg.json</span>
+        </div>
+        <div class="mb-5 text-gray-300 border-l-2 border-accent pl-3 text-xs">
+          <span class="text-accent">EMPRESA:</span> WeareG<br/>
+          <span class="text-gray-500">TIPO:</span> Dados · Automação · Inteligência Artificial<br/>
+          <span class="text-gray-500">HISTÓRICO:</span> Sistema ativo, validado, dados reais — 12 meses de operação<br/>
+          <span class="text-gray-500">IA:</span> ByOne em implementação · Primeira IA deste heliporto<br/>
+          <span class="text-green-500">STATUS:</span> ✓ Operando. Dentro da operação. Conhece cada detalhe.
+        </div>
+        <div class="mb-2">
+          <span class="text-green-500">➜</span> <span class="text-cyan-400">~</span> <span class="text-gray-300">cat concorrente_erp.json</span>
+        </div>
+        <div class="mb-5 text-gray-300 border-l-2 border-yellow-500 pl-3 text-xs">
+          <span class="text-yellow-500">EMPRESA:</span> Empresa de ERP<br/>
+          <span class="text-gray-500">TIPO:</span> ERP · Gestão Administrativa · Processos Genéricos<br/>
+          <span class="text-gray-500">HISTÓRICO:</span> Zero histórico em automação de passageiros<br/>
+          <span class="text-gray-500">IA:</span> Não nativa · Sem especialização operacional<br/>
+          <span class="text-yellow-500">STATUS:</span> ⚠ Curva de implementação: desconhecida. Risco: real.
+        </div>
+        <div id="terminal-extra" class="hidden">
+          <div class="mb-2">
+            <span class="text-green-500">➜</span> <span class="text-cyan-400">~</span> <span class="text-gray-300">cat veredicto.json</span>
+          </div>
+          <div class="mb-4 text-gray-300 border-l-2 border-green-500 pl-3 text-xs">
+            <span class="text-green-500">CONCLUSÃO:</span> A pergunta não é quem pode construir.<br/>
+            <span class="text-gray-500">————————</span> A pergunta é quem já construiu, já testou,<br/>
+            <span class="text-gray-500">————————</span> já corrigiu, já conhece cada exceção da operação.<br/>
+            <span class="text-green-500">RESPOSTA:</span> WeareG.
+          </div>
+        </div>
+      </div>
+      <div class="p-4 bg-[#252525] border-t border-gray-700 flex items-center gap-2">
+        <span class="text-green-500">➜</span>
+        <span class="text-cyan-400">~</span>
+        <label for="terminal-input" class="sr-only">Comando do terminal</label>
+        <input autocomplete="off" class="bg-transparent border-none outline-none text-white w-full focus:ring-0 placeholder-gray-600 text-xs" id="terminal-input" placeholder="Digite 'compare', 'status' ou 'futuro'" type="text" aria-label="Digite um comando no terminal interativo"/>
+      </div>
+    </div>
+  </section>
+
+  <!-- FECHAMENTO -->
+  <section class="max-w-3xl mx-auto text-center section-fade pb-12">
+    <div class="mb-6">
+      <span class="font-mono text-xxs uppercase tracking-widest text-secondary">A pergunta final</span>
+    </div>
+    <h2 class="text-3xl md:text-5xl font-semibold tracking-tighter mb-8 leading-tight">
+      Com quem vocês querem<br/>
+      <span class="text-accent">construir o próximo capítulo?</span>
+    </h2>
+    <p class="text-secondary text-base leading-relaxed mb-10">
+      A WeareG não está propondo uma solução. Estamos apresentando o histórico do que já foi entregue — com dados reais, em operação real, neste heliporto. O OnePax não é uma promessa. É uma realidade que vocês usam todos os dias.
+    </p>
+    <div class="flex flex-col sm:flex-row gap-4 justify-center">
+      <a href="proposta-onepax.html" class="px-8 py-4 bg-accent text-white rounded-full font-mono text-xs font-bold uppercase tracking-widest hover:bg-primary transition-colors duration-300 inline-block">
+        Ver Proposta Comercial
+      </a>
+      <div class="px-8 py-4 border border-gray-200 rounded-full font-mono text-xs uppercase tracking-widest text-secondary flex items-center gap-2 justify-center">
+        <span class="w-1.5 h-1.5 rounded-full bg-accent animate-pulse"></span>
+        Sistema ativo desde 2024
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- FOOTER -->
+<footer class="bg-white border-t border-gray-200 py-12 mt-20 text-center">
+  <div class="flex justify-center mb-6">
+    <span class="font-mono text-sm font-bold uppercase tracking-widest">WeareG</span>
+  </div>
+  <p class="font-mono text-xs uppercase text-gray-400 tracking-widest">© 2025 WeareG. Dados · Automação · Inteligência Artificial.</p>
+  <p class="font-mono text-xxs text-gray-300 mt-2">Apresentação Confidencial · Heliporto · OnePax</p>
+</footer>
+
+<script>
+// === LOADER ===
+(function() {
+  let pct = 0;
+  const bar = document.getElementById('loader-bar');
+  const pctEl = document.getElementById('loader-pct');
+  const loader = document.getElementById('loader');
+  const iv = setInterval(() => {
+    pct += Math.random() * 15;
+    if (pct >= 100) { pct = 100; clearInterval(iv); }
+    bar.style.width = pct + '%';
+    pctEl.textContent = Math.floor(pct) + '%';
+    if (pct === 100) {
+      setTimeout(() => {
+        loader.style.opacity = '0';
+        loader.style.transition = 'opacity 0.6s';
+        setTimeout(() => { loader.style.display = 'none'; initAnimations(); }, 600);
+      }, 200);
+    }
+  }, 80);
+})();
+
+// === CURSOR ===
+const dot = document.querySelector('.cursor-dot');
+const ring = document.querySelector('.cursor-ring');
+let mouseX = 0, mouseY = 0, ringX = 0, ringY = 0;
+document.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; dot.style.left = mouseX + 'px'; dot.style.top = mouseY + 'px'; });
+function animateRing() {
+  ringX += (mouseX - ringX) * 0.12;
+  ringY += (mouseY - ringY) * 0.12;
+  if (ring) { ring.style.left = ringX + 'px'; ring.style.top = ringY + 'px'; }
+  requestAnimationFrame(animateRing);
+}
+animateRing();
+document.querySelectorAll('a, button, .cursor-pointer, .screen-item, .group').forEach(el => {
+  el.addEventListener('mouseenter', () => document.body.classList.add('hovering'));
+  el.addEventListener('mouseleave', () => document.body.classList.remove('hovering'));
+});
+
+// === GSAP ANIMATIONS ===
+function initAnimations() {
+  gsap.registerPlugin(ScrollTrigger);
+
+  // Hero text
+  gsap.to('.reveal-hero-text', { y: 0, opacity: 1, duration: 1, stagger: 0.15, ease: 'power3.out', delay: 0.2 });
+  gsap.to('.reveal-hero', { opacity: 1, y: 0, duration: 0.8, stagger: 0.1, ease: 'power2.out', delay: 0.8 });
+
+  // Section fades
+  document.querySelectorAll('.section-fade').forEach(el => {
+    gsap.to(el, {
+      opacity: 1, y: 0, duration: 0.8, ease: 'power2.out',
+      scrollTrigger: { trigger: el, start: 'top 85%', toggleActions: 'play none none none' }
+    });
+  });
+
+  // Counter animation
+  document.querySelectorAll('[data-count]').forEach(el => {
+    const target = parseInt(el.dataset.count);
+    const suffix = el.dataset.suffix || '';
+    const isNeg = target < 0;
+    ScrollTrigger.create({
+      trigger: el,
+      start: 'top 80%',
+      onEnter: () => {
+        let current = 0;
+        const step = target / 40;
+        const iv = setInterval(() => {
+          current += step;
+          if ((isNeg && current <= target) || (!isNeg && current >= target)) {
+            current = target;
+            clearInterval(iv);
+          }
+          el.textContent = (target > 0 ? '+' : '') + Math.round(current) + suffix;
+        }, 25);
+      }
+    });
+  });
+
+  // Noise canvas
+  const canvas = document.getElementById('noise-canvas');
+  if (canvas) {
+    const ctx = canvas.getContext('2d');
+    function resize() { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; }
+    resize();
+    window.addEventListener('resize', resize);
+    let noiseFrame = 0;
+    function drawNoise() {
+      noiseFrame++;
+      if (noiseFrame % 6 === 0) {
+        const id = ctx.createImageData(canvas.width, canvas.height);
+        for (let i = 0; i < id.data.length; i += 4) {
+          const v = Math.random() * 255;
+          id.data[i] = id.data[i+1] = id.data[i+2] = v;
+          id.data[i+3] = 255;
+        }
+        ctx.putImageData(id, 0, 0);
+      }
+      requestAnimationFrame(drawNoise);
+    }
+    drawNoise();
+  }
+}
+
+// === SISTEMA: Screen switcher ===
+function setScreen(name) {
+  const panels = ['dashboard','contagem','bi','relatorios','byone'];
+  panels.forEach(p => {
+    const el = document.getElementById('panel-' + p);
+    if (el) el.classList.toggle('hidden', p !== name);
+    const item = document.getElementById('item-' + p);
+    if (item) {
+      if (p === name) {
+        item.classList.add('border-accent', 'shadow-sm');
+        item.querySelector('.w-10').classList.add('bg-accent/10');
+      } else {
+        item.classList.remove('border-accent', 'shadow-sm');
+        item.querySelector('.w-10').classList.remove('bg-accent/10');
+      }
+    }
+  });
+}
+
+// === TERMINAL ===
+const termInput = document.getElementById('terminal-input');
+const termOutput = document.getElementById('terminal-output');
+const termExtra = document.getElementById('terminal-extra');
+if (termInput) {
+  termInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      const cmd = this.value.trim().toLowerCase();
+      this.value = '';
+      const line = document.createElement('div');
+      line.className = 'mb-2';
+      const safeCmd = cmd.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      line.innerHTML = `<span class="text-green-500">➜</span> <span class="text-cyan-400">~</span> <span class="text-gray-300">${safeCmd}</span>`;
+      termOutput.insertBefore(line, termOutput.querySelector('#terminal-extra') || null);
+
+      let resp = '';
+      if (cmd === 'compare' || cmd === 'veredicto') {
+        termExtra.classList.remove('hidden');
+        resp = '';
+      } else if (cmd === 'status') {
+        resp = `<div class="mb-4 text-gray-300 border-l-2 border-green-500 pl-3 text-xs">STATUS OnePax: <span class="text-green-500">● ATIVO</span><br>Catracas: 3/3 online · ByOne: Em implementação · WhatsApp: Em configuração</div>`;
+      } else if (cmd === 'futuro') {
+        resp = `<div class="mb-4 text-gray-300 border-l-2 border-accent pl-3 text-xs"><span class="text-accent">PRÓXIMOS PASSOS:</span><br>→ ByOne IA: Insights automáticos sobre dados do OnePax<br>→ WhatsApp: Notificações diretas para passageiros<br>→ Expansão: Novos módulos conforme necessidade da operação</div>`;
+      } else if (cmd === 'clear') {
+        termOutput.innerHTML = '<div class="mb-4 text-gray-400 text-xs">WeareG Intelligence Report v1.0<br/>Digite \'compare\', \'status\' ou \'futuro\'</div><div id="terminal-extra" class="hidden"></div>';
+        return;
+      } else if (cmd === 'help') {
+        resp = `<div class="mb-4 text-gray-300 text-xs">Comandos: <span class="text-accent">compare</span> · <span class="text-accent">status</span> · <span class="text-accent">futuro</span> · <span class="text-accent">clear</span></div>`;
+      } else {
+        const safeCmdResp = cmd.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        resp = `<div class="mb-4 text-red-400 text-xs">Comando não reconhecido: "${safeCmdResp}" — tente 'help'</div>`;
+      }
+      if (resp) {
+        const r = document.createElement('div');
+        r.innerHTML = resp;
+        termOutput.appendChild(r);
+      }
+      termOutput.scrollTop = termOutput.scrollHeight;
+    }
+  });
+}
+
+// Initial hero text positioning
+document.querySelectorAll('.reveal-hero-text').forEach(el => { el.style.transform = 'translateY(100%)'; el.style.opacity = '0'; });
+</script>
+</body>
+</html>
